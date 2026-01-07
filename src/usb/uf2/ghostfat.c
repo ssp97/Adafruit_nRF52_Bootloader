@@ -36,6 +36,10 @@
 #include "bootloader_settings.h"
 #include "bootloader.h"
 
+#ifdef ENABLE_QSPI_FLASH
+#include "qspi_flash.h"
+#endif
+
 //--------------------------------------------------------------------+
 //
 //--------------------------------------------------------------------+
@@ -167,8 +171,8 @@ STATIC_ASSERT( CLUSTER_COUNT >= 0x1015 && CLUSTER_COUNT < 0xFFD5 );
 #define TRUE_USER_FLASH_SIZE (USER_FLASH_END-USER_FLASH_START)
 STATIC_ASSERT(TRUE_USER_FLASH_SIZE % UF2_FIRMWARE_BYTES_PER_SECTOR == 0); // UF2 requirement -- overall size must be integral multiple of per-sector payload?
 
-#define UF2_SECTORS        ( (TRUE_USER_FLASH_SIZE / UF2_FIRMWARE_BYTES_PER_SECTOR) + \
-                            ((TRUE_USER_FLASH_SIZE % UF2_FIRMWARE_BYTES_PER_SECTOR) ? 1 : 0))
+#define UF2_SECTORS        ( (CFG_UF2_TOTAL_FLASH_SIZE / UF2_FIRMWARE_BYTES_PER_SECTOR) + \
+                            ((CFG_UF2_TOTAL_FLASH_SIZE % UF2_FIRMWARE_BYTES_PER_SECTOR) ? 1 : 0))
 #define UF2_SIZE           (UF2_SECTORS * BPB_SECTOR_SIZE)
 
 STATIC_ASSERT(UF2_SECTORS == ((UF2_SIZE/2) / 256)); // Not a requirement ... ensuring replacement of literal value is not a change
@@ -371,7 +375,7 @@ void read_block(uint32_t block_no, uint8_t *data) {
         } else { // generate the UF2 file data on-the-fly
             sectionIdx -= NUM_FILES - 1;
             uint32_t addr = USER_FLASH_START + (sectionIdx * UF2_FIRMWARE_BYTES_PER_SECTOR);
-            if (addr < CFG_UF2_FLASH_SIZE) {
+            if (addr < CFG_UF2_TOTAL_FLASH_SIZE) {
                 UF2_Block *bl = (void *)data;
                 bl->magicStart0 = UF2_MAGIC_START0;
                 bl->magicStart1 = UF2_MAGIC_START1;
@@ -382,7 +386,20 @@ void read_block(uint32_t block_no, uint8_t *data) {
                 bl->payloadSize = UF2_FIRMWARE_BYTES_PER_SECTOR;
                 bl->flags = UF2_FLAG_FAMILYID;
                 bl->familyID = CFG_UF2_BOARD_APP_ID;
+
+                // Check if address is in QSPI Flash range
+#ifdef ENABLE_QSPI_FLASH
+                if (addr >= CFG_UF2_QSPI_XIP_OFFSET) {
+                    // Read from QSPI Flash
+                    qspi_flash_read(addr - CFG_UF2_QSPI_XIP_OFFSET, bl->data, bl->payloadSize);
+                } else {
+                    // Read from internal Flash
+                    memcpy(bl->data, (void *)addr, bl->payloadSize);
+                }
+#else
+                // Read from internal Flash only
                 memcpy(bl->data, (void *)addr, bl->payloadSize);
+#endif
             }
         }
 

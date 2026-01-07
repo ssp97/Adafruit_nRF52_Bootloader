@@ -148,7 +148,8 @@ C_SRC += \
   src/main.c \
   src/screen.c \
   src/images.c \
-
+  src/qspi_flash.c \
+  
 # all files in boards
 C_SRC += src/boards/boards.c
 
@@ -527,3 +528,4 @@ gdbflash: $(BUILD)/$(MERGED_FILE).hex
 
 gdb: $(BUILD)/$(OUT_NAME).out
 	$(GDB_BMP) $<
+

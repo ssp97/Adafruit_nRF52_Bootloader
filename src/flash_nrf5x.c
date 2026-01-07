@@ -27,6 +27,10 @@
 #include "flash_nrf5x.h"
 #include "boards.h"
 
+#ifdef ENABLE_QSPI_FLASH
+#include "qspi_flash.h"
+#endif
+
 #define FLASH_PAGE_SIZE           4096
 #define FLASH_CACHE_INVALID_ADDR  0xffffffff
 
@@ -62,6 +66,36 @@ void flash_nrf5x_write (uint32_t dst, void const *src, int len, bool need_erase)
 {
   uint32_t newAddr = dst & ~(FLASH_PAGE_SIZE - 1);
 
+#ifdef ENABLE_QSPI_FLASH
+  // Check if address is in QSPI Flash range
+  if (dst >= CFG_UF2_QSPI_XIP_OFFSET && dst < (CFG_UF2_QSPI_XIP_OFFSET + CFG_UF2_QSPI_FLASH_SIZE))
+  {
+    // Initialize QSPI Flash if not already done
+    static bool qspi_initialized = false;
+    if (!qspi_initialized)
+    {
+      if (qspi_flash_init() == QSPI_FLASH_STATUS_SUCCESS)
+      {
+        qspi_initialized = true;
+        PRINTF("QSPI Flash initialized successfully\r\n");
+      }
+      else
+      {
+        PRINTF("Failed to initialize QSPI Flash\r\n");
+        return;
+      }
+    }
+    
+    // Write to QSPI Flash
+    qspi_flash_status_t status = qspi_flash_write(dst - CFG_UF2_QSPI_XIP_OFFSET, (uint8_t*)src, len);
+    if (status != QSPI_FLASH_STATUS_SUCCESS)
+    {
+      PRINTF("Failed to write to QSPI Flash: status=%d\r\n", status);
+    }
+    return;
+  }
+#endif
+
   if ( newAddr != _fl_addr )
   {
     flash_nrf5x_flush(need_erase);
@@ -70,4 +104,3 @@ void flash_nrf5x_write (uint32_t dst, void const *src, int len, bool need_erase)
   }
   memcpy(_fl_buf + (dst & (FLASH_PAGE_SIZE - 1)), src, len);
 }
-

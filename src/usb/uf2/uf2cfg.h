@@ -16,9 +16,19 @@
 #if defined(NRF52840_XXAA)
   #define CFG_UF2_FAMILY_APP_ID       0xADA52840
   #define CFG_UF2_FLASH_SIZE          (1024*1024) // 1 MB
+  
+  // QSPI Flash support
+  #ifdef ENABLE_QSPI_FLASH
+    #define CFG_UF2_QSPI_FLASH_SIZE   QSPI_FLASH_SIZE
+    #define CFG_UF2_QSPI_XIP_OFFSET   QSPI_XIP_OFFSET
+    #define CFG_UF2_TOTAL_FLASH_SIZE  (CFG_UF2_FLASH_SIZE + CFG_UF2_QSPI_FLASH_SIZE)
+  #else
+    #define CFG_UF2_TOTAL_FLASH_SIZE  CFG_UF2_FLASH_SIZE
+  #endif
 #elif defined(NRF52833_XXAA)
   #define CFG_UF2_FAMILY_APP_ID       0x621E937A
   #define CFG_UF2_FLASH_SIZE          (512*1024)  // 512 kB
+  #define CFG_UF2_TOTAL_FLASH_SIZE    CFG_UF2_FLASH_SIZE
 #endif
 
 // Application Address Space
