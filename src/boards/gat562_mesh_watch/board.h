@@ -67,4 +67,23 @@
 #define UF2_BOARD_ID          "GAT562-MESH-WATCH"
 #define UF2_INDEX_URL         "http://www.gat-iot.com/index.html"
 
+// QSPI Flash Configuration
+// Enable QSPI Flash support
+#define ENABLE_QSPI_FLASH 1
+
+// QSPI Flash size in bytes (W25Q16 = 2MB)
+#define QSPI_FLASH_SIZE 2097152
+
+// QSPI Flash XIPOFFSET (start address after internal flash)
+#define QSPI_XIP_OFFSET 0x100000
+
+// QSPI Flash pins configuration
+#define QSPI_SCK_PIN 3
+#define QSPI_CSN_PIN 26
+#define QSPI_IO0_PIN 30
+#define QSPI_IO1_PIN 29
+#define QSPI_IO2_PIN 28
+#define QSPI_IO3_PIN 2
+
+
 #endif // _FEATHER_NRF52840_H

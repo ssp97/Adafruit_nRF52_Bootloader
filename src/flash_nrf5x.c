@@ -26,6 +26,7 @@
 #include "nrf_sdm.h"
 #include "flash_nrf5x.h"
 #include "boards.h"
+#include "usb/uf2/uf2cfg.h"
 
 #ifdef ENABLE_QSPI_FLASH
 #include "qspi_flash.h"

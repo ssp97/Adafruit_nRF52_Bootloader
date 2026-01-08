@@ -1,6 +1,8 @@
 #ifndef NRFX_CONFIG_H__
 #define NRFX_CONFIG_H__
 
+#include "board.h"
+
 // Power
 #define NRFX_POWER_ENABLED  1
 #define NRFX_POWER_DEFAULT_CONFIG_IRQ_PRIORITY  7
@@ -17,6 +19,13 @@
 #define NRFX_PWM2_ENABLED   0
 #define NRFX_PWM3_ENABLED   0
 
+#ifdef NRF52840_XXAA
+    #ifdef ENABLE_QSPI_FLASH
+        #define NRFX_QSPI_ENABLED   1
+    #else
+        #define NRFX_QSPI_ENABLED   0
+    #endif
+#endif
 // UART
 #ifdef NRF52832_XXAA
 #define NRFX_UART_ENABLED   1

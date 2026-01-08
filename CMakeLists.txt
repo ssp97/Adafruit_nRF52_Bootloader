@@ -45,12 +45,14 @@ add_executable(bootloader
   src/dfu_init.c
   src/flash_nrf5x.c
   src/main.c
+  src/qspi_flash.c
   src/screen.c
   src/images.c
   src/boards/boards.c
   # nrfx
   ${NRFX_DIR}/drivers/src/nrfx_power.c
   ${NRFX_DIR}/drivers/src/nrfx_nvmc.c
+  ${NRFX_DIR}/drivers/src/nrfx_qspi.c
   ${NRFX_DIR}/mdk/system_${MCU_VARIANT}.c
   # sdk 11
   ${SDK11_DIR}/libraries/bootloader_dfu/bootloader.c

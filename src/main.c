@@ -54,6 +54,10 @@
 
 #include "boards.h"
 
+#ifdef ENABLE_QSPI_FLASH
+#include "qspi_flash.h"
+#endif
+
 #include "pstorage_platform.h"
 #include "nrf_mbr.h"
 
@@ -169,6 +173,16 @@ int main(void) {
   BOOTLOADER_VERSION_REGISTER = (MK_BOOTLOADER_VERSION);
 
   board_init();
+
+#ifdef ENABLE_QSPI_FLASH
+  // Pre-initialize QSPI Flash
+  if (qspi_flash_init() == QSPI_FLASH_STATUS_SUCCESS) {
+    PRINTF("QSPI Flash pre-initialized successfully\r\n");
+  } else {
+    PRINTF("Failed to pre-initialize QSPI Flash\r\n");
+  }
+#endif
+
   bootloader_init();
   PRINTF("Bootloader Start\r\n");
   led_state(STATE_BOOTLOADER_STARTED);
