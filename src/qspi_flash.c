@@ -27,6 +27,9 @@
 #include "nrfx_qspi.h"
 #include "nrf_gpio.h"
 #include <string.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 // QSPI Flash configuration
 static nrfx_qspi_config_t g_qspi_config = {0};
@@ -44,8 +47,8 @@ static const nrfx_qspi_config_t qspi_config_default = {
         .io3_pin  = 18,
     },
     .prot_if = {
-        .readoc    = NRF_QSPI_READOC_FASTREAD,
-        .writeoc   = NRF_QSPI_WRITEOC_PP,
+        .readoc    = NRF_QSPI_READOC_READ4IO,  // Use Quad I/O for reading
+        .writeoc   = NRF_QSPI_WRITEOC_PP4IO,   // Use Quad I/O for writing
         .addrmode  = NRF_QSPI_ADDRMODE_24BIT,
         .dpmconfig = true,
     },
@@ -70,6 +73,24 @@ static const nrf_qspi_cinstr_conf_t cmd_write_enable = {
 
 static const nrf_qspi_cinstr_conf_t cmd_read_status = {
     .opcode    = W25Q16_CMD_READ_STATUS_REG1,
+    .length    = NRF_QSPI_CINSTR_LEN_2B,
+    .io2_level = false,
+    .io3_level = false,
+    .wipwait   = false,
+    .wren      = false,
+};
+
+static const nrf_qspi_cinstr_conf_t cmd_write_status = {
+    .opcode    = W25Q16_CMD_WRITE_STATUS_REG,
+    .length    = NRF_QSPI_CINSTR_LEN_2B,
+    .io2_level = false,
+    .io3_level = false,
+    .wipwait   = false,
+    .wren      = true,
+};
+
+static const nrf_qspi_cinstr_conf_t cmd_read_status2 = {
+    .opcode    = W25Q16_CMD_READ_STATUS_REG2,
     .length    = NRF_QSPI_CINSTR_LEN_2B,
     .io2_level = false,
     .io3_level = false,
@@ -172,6 +193,14 @@ qspi_flash_status_t qspi_flash_init(void)
 
     // Wait for QSPI to be ready
     qspi_wait_ready();
+    
+    // Configure W25Q16 for Quad mode
+    PRINTF("Configuring W25Q16 for Quad mode...\r\n");
+    qspi_flash_status_t quad_err = qspi_flash_configure_quad_mode();
+    if (quad_err != QSPI_FLASH_STATUS_SUCCESS) {
+        PRINTF("Failed to configure Quad mode: err=%d\r\n", quad_err);
+        // Continue anyway, as the flash might still work in single mode
+    }
     // PRINTF("QSPI Flash ready, size=%lu bytes, XIP offset=0x%08lX\r\n",
     //         g_qspi_config.flash_size, g_qspi_config.xip_offset);
 
@@ -235,6 +264,59 @@ static qspi_flash_status_t qspi_flash_write_enable(void)
         return QSPI_FLASH_STATUS_ERROR;
     }
     
+    return QSPI_FLASH_STATUS_SUCCESS;
+}
+
+// Configure W25Q16 for Quad mode
+static qspi_flash_status_t qspi_flash_configure_quad_mode(void)
+{
+    uint8_t status1, status2;
+    uint8_t tx_data[2];
+    
+    // Read current status registers
+    nrfx_err_t err = nrfx_qspi_cinstr_xfer(&cmd_read_status, NULL, &status1);
+    if (err != NRFX_SUCCESS) {
+        return QSPI_FLASH_STATUS_ERROR;
+    }
+    
+    err = nrfx_qspi_cinstr_xfer(&cmd_read_status2, NULL, &status2);
+    if (err != NRFX_SUCCESS) {
+        return QSPI_FLASH_STATUS_ERROR;
+    }
+    
+    PRINTF("W25Q16 Status1: 0x%02X, Status2: 0x%02X\r\n", status1, status2);
+    
+    // Check if Quad mode is already enabled (QIO bit in Status Register 2)
+    if ((status2 & 0x02) != 0) {
+        PRINTF("W25Q16 already in Quad mode\r\n");
+        return QSPI_FLASH_STATUS_SUCCESS;
+    }
+    
+    // Enable Quad mode by setting QIO bit in Status Register 2
+    // Status Register 2: bit 1 = Quad Enable (QIO)
+    status2 |= 0x02;
+    
+    // Write enable before writing status register
+    err = nrfx_qspi_cinstr_xfer(&cmd_write_enable, NULL, NULL);
+    if (err != NRFX_SUCCESS) {
+        return QSPI_FLASH_STATUS_ERROR;
+    }
+    
+    // Write status registers
+    tx_data[0] = status1;
+    tx_data[1] = status2;
+    err = nrfx_qspi_cinstr_xfer(&cmd_write_status, tx_data, NULL);
+    if (err != NRFX_SUCCESS) {
+        return QSPI_FLASH_STATUS_ERROR;
+    }
+    
+    // Wait for write to complete
+    qspi_flash_status_t status = qspi_flash_wait_ready(1000);
+    if (status != QSPI_FLASH_STATUS_SUCCESS) {
+        return status;
+    }
+    
+    PRINTF("W25Q16 configured for Quad mode\r\n");
     return QSPI_FLASH_STATUS_SUCCESS;
 }
 

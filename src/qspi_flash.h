@@ -94,6 +94,9 @@ uint8_t qspi_flash_get_status(void);
 // Set QSPI Flash XIPOFFSET
 void qspi_flash_set_xip_offset(uint32_t offset);
 
+// Configure W25Q16 for Quad mode (internal function)
+static qspi_flash_status_t qspi_flash_configure_quad_mode(void);
+
 #ifdef __cplusplus
 }
 #endif
