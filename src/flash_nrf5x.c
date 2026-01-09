@@ -38,6 +38,11 @@
 static uint32_t _fl_addr = FLASH_CACHE_INVALID_ADDR;
 static uint8_t _fl_buf[FLASH_PAGE_SIZE] __attribute__((aligned(4)));
 
+#ifdef ENABLE_QSPI_FLASH
+// Cache to track which QSPI sectors have been erased to avoid repeated erasures
+static uint32_t _qspi_erased_sector = 0xFFFFFFFF; // Track last erased sector
+#endif
+
 void flash_nrf5x_flush (bool need_erase)
 {
   if ( _fl_addr == FLASH_CACHE_INVALID_ADDR ) return;
@@ -63,6 +68,14 @@ void flash_nrf5x_flush (bool need_erase)
   _fl_addr = FLASH_CACHE_INVALID_ADDR;
 }
 
+#ifdef ENABLE_QSPI_FLASH
+// Reset the QSPI sector erase cache - useful when starting a new write operation
+void flash_nrf5x_reset_qspi_erase_cache(void)
+{
+  _qspi_erased_sector = 0xFFFFFFFF;
+}
+#endif
+
 void flash_nrf5x_write (uint32_t dst, void const *src, int len, bool need_erase)
 {
   uint32_t newAddr = dst & ~(FLASH_PAGE_SIZE - 1);
@@ -84,6 +97,33 @@ void flash_nrf5x_write (uint32_t dst, void const *src, int len, bool need_erase)
       {
         PRINTF("Failed to initialize QSPI Flash\r\n");
         return;
+      }
+    }
+    
+    // For QSPI Flash, we need to erase the sector before writing if need_erase is true
+    if (need_erase)
+    {
+      // Align address to sector boundary
+      uint32_t sector_addr = (dst - CFG_UF2_QSPI_XIP_OFFSET) & ~(W25Q16_SECTOR_SIZE - 1);
+      
+      // Avoid repeated erasure of the same sector
+      if (sector_addr != _qspi_erased_sector)
+      {
+        PRINTF("Erasing QSPI Flash sector at 0x%08lX\r\n", sector_addr);
+        
+        qspi_flash_status_t erase_status = qspi_flash_erase_sector(sector_addr);
+        if (erase_status != QSPI_FLASH_STATUS_SUCCESS)
+        {
+          PRINTF("Failed to erase QSPI Flash sector: status=%d\r\n", erase_status);
+          return;
+        }
+        
+        // Update the cache to track the last erased sector
+        _qspi_erased_sector = sector_addr;
+      }
+      else
+      {
+        PRINTF("Skipping erase of already erased sector at 0x%08lX\r\n", sector_addr);
       }
     }
     

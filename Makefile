@@ -156,6 +156,7 @@ C_SRC += src/boards/boards.c
 # nrfx
 C_SRC += $(NRFX_PATH)/drivers/src/nrfx_power.c
 C_SRC += $(NRFX_PATH)/drivers/src/nrfx_nvmc.c
+C_SRC += $(NRFX_PATH)/drivers/src/nrfx_qspi.c
 C_SRC += $(NRFX_PATH)/mdk/system_$(MCU_SUB_VARIANT).c
 
 # SDK 11 files: serial + OTA DFU
